@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Resume Screening</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <h1>AI Resume Screening System</h1>
+
+    <form method="POST">
+        <label>Resume:</label><br>
+        <textarea name="resume" rows="10" cols="50"></textarea><br><br>
+
+        <label>Job Description:</label><br>
+        <textarea name="job_desc" rows="10" cols="50"></textarea><br><br>
+
+        <button type="submit">Calculate Match</button>
+    </form>
+
+    {% if score %}
+        <h2>Match Score: {{ score }}%</h2>
+    {% endif %}
+
+    {% if skills %}
+    <h3>Skills Found:</h3>
+    <p>{{ skills }}</p>
+{% endif %}
+
+    {% if matched %}
+    <h3>Matching Skills:</h3>
+    <p>{{ matched }}</p>
+{% endif %}
+
+
+</body>
+</html>
