@@ -6,32 +6,56 @@
 </head>
 <body>
 
+    <div class="container">
+
     <h1>AI Resume Screening System</h1>
 
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
+        <label>Upload Resume PDF:</label><br>
+        <input type="file" name="resume_file"><br><br>
         <label>Resume:</label><br>
-        <textarea name="resume" rows="10" cols="50"></textarea><br><br>
+        <textarea name="resume" rows="10" cols="50">{{ resume_text }}</textarea><br><br>
 
         <label>Job Description:</label><br>
-        <textarea name="job_desc" rows="10" cols="50"></textarea><br><br>
+        <textarea name="job_desc" rows="10" cols="50">{{ job_description }}</textarea></textarea><br><br>
 
         <button type="submit">Calculate Match</button>
     </form>
 
-    {% if score %}
-        <h2>Match Score: {{ score }}%</h2>
-    {% endif %}
+{% if recommendations %}
+
+<div class="result">
+    <h2>Job Recommendations</h2>
+
+    <ul>
+    {% for role, score in recommendations.items() %}
+        <li><strong>{{ role }}</strong> → {{ score }}%</li>
+    {% endfor %}
+    </ul>
+
+</div>
+
+{% endif %}
 
     {% if skills %}
     <h3>Skills Found:</h3>
-    <p>{{ skills }}</p>
+    <ul>
+        {% for skill in skills %}
+        <li>{{ skill }}</li>
+        {% endfor %}
+    </ul>
 {% endif %}
 
     {% if matched %}
     <h3>Matching Skills:</h3>
-    <p>{{ matched }}</p>
+    <ul>
+        {% for skill in matched %}
+        <li>{{ skill }}</li>
+        {% endfor %}
+    </ul>
 {% endif %}
 
+</div>
 
 </body>
 </html>
