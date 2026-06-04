@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumeAI — Job Seeker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-brand">Resume<span>AI</span></div>
+    <div class="nav-right">
+        <span class="nav-badge">Job Seeker</span>
+        <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">{{ session.name }}</span>
+        <a href="/logout" class="nav-link">Sign out</a>
+    </div>
+</nav>
+
+<div class="flash-wrap">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, msg in messages %}
+    <div class="flash flash-{{ category }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+</div>
+
+<div class="page">
+    <div class="welcome">
+        <div class="welcome-title">👋 Hello, {{ session.name }}!</div>
+        <div class="welcome-sub">Browse jobs, analyze your resume, and track your applications below.</div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Jobs Available</div>
+            <div class="stat-value accent">{{ jobs|length }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">My Applications</div>
+            <div class="stat-value">{{ applications|length }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Shortlisted</div>
+            <div class="stat-value accent">{{ applications|selectattr('status','equalto','shortlisted')|list|length }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value">{{ applications|selectattr('status','equalto','pending')|list|length }}</div>
+        </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+        <button class="tab-btn {% if tab=='browse' %}active{% endif %}" onclick="showTab('browse')">Browse Jobs</button>
+        <button class="tab-btn {% if tab=='analyze' %}active{% endif %}" onclick="showTab('analyze')">AI Resume Analyzer</button>
+        <button class="tab-btn {% if tab=='applications' %}active{% endif %}" onclick="showTab('applications')">My Applications</button>
+    </div>
+
+    <!-- ── TAB: BROWSE JOBS ───────────────────────────────── -->
+    <div id="tab-browse" class="tab-content" style="display:none;">
+        {% if jobs %}
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+            {% for job in jobs %}
+            <div class="job-card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.75rem;">
+                    <div style="flex:1; min-width:200px;">
+                        <div class="job-title">{{ job.title }}</div>
+                        <div class="job-meta">{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %} · Posted by {{ job.recruiter_name }}</div>
+                        <div class="job-desc">{{ job.description }}</div>
+                        {% if job.skills %}
+                        <div class="pill-group" style="margin-top:0.5rem;">
+                            {% for skill in job.skills.split(',') %}
+                            <span class="pill">{{ skill.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="flex-shrink:0;">
+                        <button class="btn btn-primary btn-sm" onclick="openApply({{ job.id }}, '{{ job.title }}', '{{ job.company }}')">Apply Now</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="card" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <div style="font-size:2.5rem; margin-bottom:0.75rem;">📭</div>
+                <div style="font-weight:500; color:var(--ink); margin-bottom:0.35rem;">No jobs posted yet</div>
+                <div style="font-size:0.875rem;">Check back soon — recruiters are adding positions.</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ── TAB: ANALYZE ───────────────────────────────────── -->
+    <div id="tab-analyze" class="tab-content" style="display:none;">
+        <div class="dashboard-grid">
+            <div>
+                <div class="card">
+                    <div class="section-header"><h2 class="section-title">AI Resume Analysis</h2></div>
+                    <form method="POST" action="/seeker/analyze" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Upload Resume PDF</label>
+                            <input type="file" name="resume_file" accept=".pdf">
+                        </div>
+                        <div class="form-group">
+                            <label>Or paste resume text</label>
+                            <textarea name="resume" rows="8" placeholder="Paste your full resume here…">{{ resume_text or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Target Job Description</label>
+                            <textarea name="job_desc" rows="5" placeholder="Paste the job description to compare against…">{{ job_description or '' }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">✦ Analyze Resume</button>
+                    </form>
+
+                    {% if recommendations %}
+                    <div style="margin-top:1.75rem; border-top:1px solid var(--border); padding-top:1.5rem;">
+                        <div style="font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:0.9rem;">Role Match Scores</div>
+                        <div class="match-list">
+                        {% for role, score in recommendations.items() %}
+                            <div class="match-item">
+                                <div class="match-header">
+                                    <span class="match-role">{{ role }}</span>
+                                    <span class="match-score">{{ score }}%</span>
+                                </div>
+                                <div class="bar-track">
+                                    <div class="bar-fill {% if score >= 60 %}high{% endif %}" style="width:{{ score }}%"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        </div>
+
+                        {% if skills %}
+                        <div style="margin-top:1.25rem;">
+                            <div style="font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:0.5rem;">Skills Found</div>
+                            <div class="pill-group">{% for s in skills %}<span class="pill">{{ s }}</span>{% endfor %}</div>
+                        </div>
+                        {% endif %}
+
+                        {% if matched %}
+                        <div style="margin-top:1rem;">
+                            <div style="font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:0.5rem;">Matching Skills</div>
+                            <div class="pill-group">{% for s in matched %}<span class="pill match">✓ {{ s }}</span>{% endfor %}</div>
+                        </div>
+                        {% elif recommendations %}
+                        <div style="margin-top:1rem; padding:0.75rem; background:var(--warning-soft); border-radius:var(--radius-sm); font-size:0.875rem; color:var(--warning-text);">No overlapping skills found between your resume and the job description.</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <div class="card" style="padding:1.25rem;">
+                    <div class="section-title" style="margin-bottom:0.9rem; font-size:0.95rem;">Tips for Better Match</div>
+                    <ul style="padding-left:1.1rem; color:var(--text-muted); font-size:0.875rem; line-height:2;">
+                        <li>Mirror keywords from the job description</li>
+                        <li>List tools and frameworks explicitly</li>
+                        <li>Use numbers to quantify impact</li>
+                        <li>Keep PDF text-based, not scanned</li>
+                        <li>Include relevant certifications</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TAB: MY APPLICATIONS ───────────────────────────── -->
+    <div id="tab-applications" class="tab-content" style="display:none;">
+        {% if applications %}
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            {% for app in applications %}
+            <div class="applicant-row">
+                <div class="applicant-info">
+                    <div class="applicant-name">{{ app.job_title }}</div>
+                    <div class="applicant-email">{{ app.company }}{% if app.location %} · {{ app.location }}{% endif %}</div>
+                </div>
+                <div class="applicant-score">{{ app.ai_score }}%</div>
+                <div class="applicant-skills">{{ app.skills_found or '—' }}</div>
+                <div>
+                    <span class="badge badge-{{ app.status }}">{{ app.status.capitalize() }}</span>
+                </div>
+                <div style="font-size:0.78rem; color:var(--text-muted);">{{ app.applied_at[:10] }}</div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="card" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <div style="font-size:2.5rem; margin-bottom:0.75rem;">📋</div>
+                <div style="font-weight:500; color:var(--ink); margin-bottom:0.35rem;">No applications yet</div>
+                <div style="font-size:0.875rem;">Browse jobs and apply to start tracking your progress here.</div>
+                <div style="margin-top:1.25rem;"><button class="btn btn-primary" onclick="showTab('browse')">Browse Jobs</button></div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- APPLY MODAL -->
+<div class="modal-overlay" id="applyModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title" id="modal-job-title">Apply for Job</div>
+            <button class="modal-close" onclick="closeApply()">✕</button>
+        </div>
+        <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:1.25rem;">Paste your resume below. Our AI will score your match instantly.</p>
+        <form method="POST" id="applyForm">
+            <div class="form-group">
+                <label>Your Resume Text</label>
+                <textarea name="resume_text" rows="10" placeholder="Paste your full resume here…" required></textarea>
+            </div>
+            <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+                <button type="button" class="btn btn-ghost" onclick="closeApply()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit Application →</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).style.display = 'block';
+    event && event.target && event.target.classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b.textContent.toLowerCase().includes(name === 'analyze' ? 'ai' : name === 'applications' ? 'application' : name)) {
+            b.classList.add('active');
+        }
+    });
+}
+
+function openApply(jobId, title, company) {
+    document.getElementById('modal-job-title').textContent = 'Apply: ' + title + ' @ ' + company;
+    document.getElementById('applyForm').action = '/seeker/apply/' + jobId;
+    document.getElementById('applyModal').classList.add('open');
+}
+function closeApply() {
+    document.getElementById('applyModal').classList.remove('open');
+}
+document.getElementById('applyModal').addEventListener('click', function(e) {
+    if (e.target === this) closeApply();
+});
+
+// Show correct tab on load
+document.addEventListener('DOMContentLoaded', function() {
+    var tab = '{{ tab }}';
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    var el = document.getElementById('tab-' + tab);
+    if (el) el.style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        var map = {browse:'browse jobs', analyze:'ai resume', applications:'my applications'};
+        if (b.textContent.toLowerCase().includes(map[tab] || tab)) b.classList.add('active');
+    });
+});
+</script>
+</body>
+</html>

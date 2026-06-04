@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumeAI — Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="login-wrap">
+    <div class="login-brand">
+        <div class="login-brand-name">Resume<span>AI</span></div>
+        <p class="login-tagline">Intelligent resume screening and job matching powered by NLP.</p>
+        <div class="login-features">
+            <div class="login-feature"><div class="login-feature-dot"></div>AI-powered resume analysis</div>
+            <div class="login-feature"><div class="login-feature-dot"></div>TF-IDF cosine similarity matching</div>
+            <div class="login-feature"><div class="login-feature-dot"></div>Skill extraction & gap analysis</div>
+            <div class="login-feature"><div class="login-feature-dot"></div>Multi-role job recommendations</div>
+        </div>
+    </div>
+    <div class="login-form-side">
+        <div class="login-box">
+            <h1 class="login-title">Welcome back</h1>
+            <p class="login-sub">Sign in to your ResumeAI account</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% for category, msg in messages %}
+                <div class="flash flash-{{ category }}">{{ msg }}</div>
+              {% endfor %}
+            {% endwith %}
+
+            <form action="/login" method="POST">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Sign In →</button>
+            </form>
+
+            <div class="divider"><span>don't have an account?</span></div>
+            <a href="/signup" class="btn btn-outline btn-full">Create Account</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

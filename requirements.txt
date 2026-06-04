@@ -1,5 +1,5 @@
 flask
-pandas
-numpy
 scikit-learn
 nltk
+PyPDF2
+werkzeug

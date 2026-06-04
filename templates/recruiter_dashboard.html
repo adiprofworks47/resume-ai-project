@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumeAI — Recruiter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-brand">Resume<span>AI</span></div>
+    <div class="nav-right">
+        <span class="nav-badge">Recruiter</span>
+        <span style="color:rgba(255,255,255,0.5); font-size:0.85rem;">{{ session.name }}</span>
+        <a href="/logout" class="nav-link">Sign out</a>
+    </div>
+</nav>
+
+<div class="flash-wrap">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, msg in messages %}
+    <div class="flash flash-{{ category }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+</div>
+
+<div class="page">
+    <div class="welcome">
+        <div class="welcome-title">🏢 Recruiter Dashboard</div>
+        <div class="welcome-sub">Post jobs, manage positions, and review AI-screened candidates.</div>
+    </div>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Active Jobs</div>
+            <div class="stat-value accent">{{ jobs|length }}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Total Applicants</div>
+            <div class="stat-value">
+                {% if tab == 'applicants' and applicants %}{{ applicants|length }}{% else %}—{% endif %}
+            </div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Shortlisted</div>
+            <div class="stat-value accent">
+                {% if tab == 'applicants' and applicants %}{{ applicants|selectattr('status','equalto','shortlisted')|list|length }}{% else %}—{% endif %}
+            </div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Pending Review</div>
+            <div class="stat-value">
+                {% if tab == 'applicants' and applicants %}{{ applicants|selectattr('status','equalto','pending')|list|length }}{% else %}—{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn {% if tab=='jobs' %}active{% endif %}" onclick="showTab('jobs')">My Jobs</button>
+        <button class="tab-btn {% if tab=='post' %}active{% endif %}" onclick="showTab('post')">Post a Job</button>
+        {% if tab == 'applicants' %}
+        <button class="tab-btn active">Applicants: {{ selected_job.title }}</button>
+        {% endif %}
+    </div>
+
+    <!-- ── TAB: MY JOBS ───────────────────────────────────── -->
+    <div id="tab-jobs" class="tab-content" style="display:none;">
+        {% if jobs %}
+            <div style="display:flex; flex-direction:column; gap:1rem;">
+            {% for job in jobs %}
+            <div class="job-card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.75rem;">
+                    <div style="flex:1; min-width:200px;">
+                        <div class="job-title">{{ job.title }}</div>
+                        <div class="job-meta">{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %} · Posted {{ job.posted_at[:10] }}</div>
+                        <div class="job-desc">{{ job.description }}</div>
+                        {% if job.skills %}
+                        <div class="pill-group" style="margin-top:0.5rem;">
+                            {% for skill in job.skills.split(',') %}
+                            <span class="pill">{{ skill.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:0.5rem; flex-shrink:0;">
+                        <a href="/recruiter/job/{{ job.id }}" class="btn btn-primary btn-sm">View Applicants</a>
+                        <form method="POST" action="/recruiter/job/{{ job.id }}/delete" onsubmit="return confirm('Delete this job?')">
+                            <button type="submit" class="btn btn-danger btn-sm" style="width:100%;">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="card" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <div style="font-size:2.5rem; margin-bottom:0.75rem;">📭</div>
+                <div style="font-weight:500; color:var(--ink); margin-bottom:0.35rem;">No jobs posted yet</div>
+                <div style="font-size:0.875rem;">Post your first position to start receiving AI-screened applications.</div>
+                <div style="margin-top:1.25rem;"><button class="btn btn-primary" onclick="showTab('post')">Post a Job</button></div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ── TAB: POST JOB ──────────────────────────────────── -->
+    <div id="tab-post" class="tab-content" style="display:none;">
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="section-header"><h2 class="section-title">Post a New Position</h2></div>
+                <form method="POST" action="/recruiter/post">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Job Title *</label>
+                            <input type="text" name="title" placeholder="e.g. Senior Data Scientist" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Company *</label>
+                            <input type="text" name="company" placeholder="Your company name" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" name="location" placeholder="e.g. Bangalore / Remote">
+                    </div>
+                    <div class="form-group">
+                        <label>Job Description * <span style="font-size:0.78rem; color:var(--text-muted); font-weight:400;">(AI uses this to score candidates)</span></label>
+                        <textarea name="description" rows="7" placeholder="Describe the role, responsibilities, and requirements…" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Key Skills <span style="font-size:0.78rem; color:var(--text-muted); font-weight:400;">(comma-separated)</span></label>
+                        <input type="text" name="skills" placeholder="e.g. Python, Machine Learning, SQL">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Publish Job →</button>
+                </form>
+            </div>
+            <div>
+                <div class="card" style="padding:1.25rem;">
+                    <div class="section-title" style="margin-bottom:0.9rem; font-size:0.95rem;">How AI Screening Works</div>
+                    <ol style="padding-left:1.1rem; color:var(--text-muted); font-size:0.875rem; line-height:2.1;">
+                        <li>You post a job with a description</li>
+                        <li>Candidates upload their resume</li>
+                        <li>AI scores resume vs. your description</li>
+                        <li>Applicants ranked by match score</li>
+                        <li>You shortlist or reject candidates</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TAB: APPLICANTS ────────────────────────────────── -->
+    {% if tab == 'applicants' %}
+    <div id="tab-applicants" class="tab-content" style="display:block;">
+        <div style="margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <h2 style="font-size:1.1rem; font-weight:600;">{{ selected_job.title }}</h2>
+                <div style="font-size:0.85rem; color:var(--text-muted);">{{ selected_job.company }} · {{ applicants|length }} applicant(s)</div>
+            </div>
+            <a href="/recruiter" class="btn btn-ghost btn-sm">← Back to Jobs</a>
+        </div>
+
+        {% if applicants %}
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            {% for app in applicants %}
+            <div class="applicant-row">
+                <div class="applicant-info">
+                    <div class="applicant-name">{{ app.seeker_name }}</div>
+                    <div class="applicant-email">{{ app.seeker_email }}</div>
+                    <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Applied {{ app.applied_at[:10] }}</div>
+                </div>
+                <div style="text-align:center; min-width:70px;">
+                    <div class="applicant-score">{{ app.ai_score }}%</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">AI Score</div>
+                </div>
+                <div class="applicant-skills" style="max-width:200px;">
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:3px;">Skills</div>
+                    {{ app.skills_found or 'None detected' }}
+                </div>
+                <div>
+                    <span class="badge badge-{{ app.status }}">{{ app.status.capitalize() }}</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.4rem; min-width:100px;">
+                    <form method="POST" action="/recruiter/application/{{ app.id }}/status">
+                        <input type="hidden" name="job_id" value="{{ selected_job.id }}">
+                        <input type="hidden" name="status" value="shortlisted">
+                        <button type="submit" class="btn btn-sm" style="width:100%; background:var(--success-soft); color:var(--success-text); border:1px solid #a7f3d0;">✓ Shortlist</button>
+                    </form>
+                    <form method="POST" action="/recruiter/application/{{ app.id }}/status">
+                        <input type="hidden" name="job_id" value="{{ selected_job.id }}">
+                        <input type="hidden" name="status" value="rejected">
+                        <button type="submit" class="btn btn-danger btn-sm" style="width:100%;">✕ Reject</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="card" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <div style="font-size:2.5rem; margin-bottom:0.75rem;">👥</div>
+                <div style="font-weight:500; color:var(--ink); margin-bottom:0.35rem;">No applicants yet</div>
+                <div style="font-size:0.875rem;">Share the job listing to start receiving applications.</div>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    var el = document.getElementById('tab-' + name);
+    if (el) el.style.display = 'block';
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        if (b.textContent.toLowerCase().includes(name === 'jobs' ? 'my jobs' : name === 'post' ? 'post' : name)) {
+            b.classList.add('active');
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var tab = '{{ tab }}';
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    var el = document.getElementById('tab-' + tab);
+    if (el) el.style.display = 'block';
+});
+</script>
+</body>
+</html>
