@@ -229,11 +229,13 @@ def update_status(app_id):
 
 @app.route('/admin')
 def admin():
-    users        = get_all_users()
-    jobs         = get_all_jobs()
-    applications = get_all_applications()
-    return render_template('admin.html', users=users, jobs=jobs, applications=applications)
-
+    try:
+        users        = get_all_users()
+        jobs         = get_all_jobs()
+        applications = get_all_applications()
+        return render_template('admin.html', users=users, jobs=jobs, applications=applications)
+    except Exception as e:
+        return str(e), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
